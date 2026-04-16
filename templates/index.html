@@ -1494,7 +1494,6 @@ function fillForm(bl, bd, fl, bm) {
 }
 
 // ===== AUTO SCROLL TO RESULT =====
-{% if hasil %}
 window.addEventListener('load', function() {
     const resultEl = document.getElementById('result-container');
     if (resultEl) {
@@ -1503,7 +1502,6 @@ window.addEventListener('load', function() {
         }, 500);
     }
 });
-{% endif %}
 </script>
 
 </body>
