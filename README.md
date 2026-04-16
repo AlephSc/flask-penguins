@@ -45,7 +45,7 @@ Model KNN dilatih menggunakan dataset Palmer Penguins dan disimpan dalam format 
 ## 🛠️ Teknologi
 
 **Back End:**
-- Python 3.x
+- Python 3.9 (Wajib)
 - Flask
 - scikit-learn (KNN)
 - NumPy
@@ -78,18 +78,18 @@ Pwpb/
 ### 1. Clone / Download Proyek
 
 ```bash
-git clone <url-repo>
-cd Pwpb
+git clone https://github.com/AlephSc/flask-penguins.git
+cd flask-penguins
 ```
 
 ### 2. Buat Virtual Environment (Opsional tapi Disarankan)
 
 ```bash
-python -m venv env
+python -m venv venv
 ```
 
 Aktifkan:
-- **Windows:** `env\Scripts\activate`
+- **Windows:** `venv\Scripts\activate`
 - **Mac/Linux:** `source env/bin/activate`
 
 ### 3. Install Dependencies
