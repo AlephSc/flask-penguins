@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palmer Penguins — Species Classifier</title>
+<meta name="description" content="Klasifikasi spesies penguin Palmer menggunakan machine learning KNN berdasarkan ciri fisik paruh, sirip, dan berat badan.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ===== DESIGN TOKENS ===== */
+:root {
+    --bg-primary: #0f1729;
+    --bg-secondary: #162037;
+    --bg-card: rgba(22, 38, 66, 0.65);
+    --bg-card-hover: rgba(30, 50, 80, 0.8);
+    --border-subtle: rgba(100, 180, 255, 0.08);
+    --border-glow: rgba(100, 180, 255, 0.2);
+
+    --text-primary: #e8edf5;
+    --text-secondary: #8e9bba;
+    --text-muted: #5a6a8a;
+
+    --accent-blue: #4facfe;
+    --accent-cyan: #00f2fe;
+    --accent-teal: #38d9a9;
+    --accent-orange: #ffa94d;
+    --accent-pink: #f06595;
+    --accent-purple: #b197fc;
+
+    --gradient-hero: linear-gradient(135deg, #0f1729 0%, #1a2744 50%, #162037 100%);
+    --gradient-accent: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+    --gradient-warm: linear-gradient(135deg, var(--accent-orange), var(--accent-pink));
+    --gradient-cool: linear-gradient(135deg, var(--accent-teal), var(--accent-blue));
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+    --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.35);
+    --shadow-glow-blue: 0 0 30px rgba(79, 172, 254, 0.15);
+    --shadow-glow-cyan: 0 0 30px rgba(0, 242, 254, 0.15);
+
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+
+    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-blue) var(--bg-primary);
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.7;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ===== AMBIENT BACKGROUND ===== */
+.ambient-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.ambient-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.12;
+    animation: orbFloat 20s ease-in-out infinite;
+}
+
+.orb-1 {
+    width: 500px; height: 500px;
+    background: var(--accent-blue);
+    top: -100px; left: -100px;
+    animation-duration: 25s;
+}
+
+.orb-2 {
+    width: 400px; height: 400px;
+    background: var(--accent-cyan);
+    top: 50%; right: -150px;
+    animation-duration: 20s;
+    animation-delay: -5s;
+}
+
+.orb-3 {
+    width: 350px; height: 350px;
+    background: var(--accent-purple);
+    bottom: -50px; left: 30%;
+    animation-duration: 22s;
+    animation-delay: -10s;
+}
+
+@keyframes orbFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(30px, -40px) scale(1.05); }
+    50% { transform: translate(-20px, 20px) scale(0.95); }
+    75% { transform: translate(40px, 30px) scale(1.02); }
+}
+
+/* ===== SNOWFLAKES ===== */
+.snowflakes {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.snowflake {
+    position: absolute;
+    top: -10px;
+    width: 4px; height: 4px;
+    background: white;
+    border-radius: 50%;
+    opacity: 0;
+    animation: snowfall linear infinite;
+}
+
+@keyframes snowfall {
+    0% { opacity: 0; transform: translateY(0) translateX(0) rotate(0); }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.4; }
+    100% { opacity: 0; transform: translateY(100vh) translateX(50px) rotate(360deg); }
+}
+
+/* ===== LAYOUT ===== */
+.page-wrapper {
+    position: relative;
+    z-index: 2;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+section {
+    padding: 80px 0;
+}
+
+/* ===== NAVBAR ===== */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 16px 0;
+    background: rgba(15, 23, 41, 0.7);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-subtle);
+    transition: var(--transition-smooth);
+}
+
+.navbar.scrolled {
+    padding: 10px 0;
+    background: rgba(15, 23, 41, 0.92);
+}
+
+.nav-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--text-primary);
+}
+
+.logo-icon {
+    width: 38px; height: 38px;
+    background: var(--gradient-accent);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: var(--shadow-glow-blue);
+}
+
+.logo-text {
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+}
+
+.logo-text span {
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.nav-links {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+}
+
+.nav-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: var(--transition-fast);
+    position: relative;
+}
+
+.nav-links a::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--gradient-accent);
+    transition: var(--transition-smooth);
+    border-radius: 2px;
+}
+
+.nav-links a:hover {
+    color: var(--text-primary);
+}
+
+.nav-links a:hover::after {
+    width: 100%;
+}
+
+/* ===== HERO ===== */
+.hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding-top: 80px;
+}
+
+.hero-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+}
+
+.hero-text h1 {
+    font-size: 3.2rem;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    margin-bottom: 20px;
+}
+
+.hero-text h1 .gradient-text {
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 36px;
+    max-width: 480px;
+    line-height: 1.8;
+}
+
+.hero-stats {
+    display: flex;
+    gap: 40px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 800;
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 4px;
+}
+
+.hero-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.penguin-showcase {
+    position: relative;
+    width: 380px;
+    height: 380px;
+}
+
+.penguin-circle {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(79, 172, 254, 0.15), rgba(0, 242, 254, 0.05));
+    border: 1px solid var(--border-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: gentlePulse 4s ease-in-out infinite;
+    position: relative;
+}
+
+.penguin-circle::before {
+    content: '';
+    position: absolute;
+    inset: -15px;
+    border-radius: 50%;
+    border: 1px dashed rgba(79, 172, 254, 0.15);
+    animation: slowSpin 30s linear infinite;
+}
+
+.penguin-circle::after {
+    content: '';
+    position: absolute;
+    inset: -35px;
+    border-radius: 50%;
+    border: 1px dashed rgba(0, 242, 254, 0.08);
+    animation: slowSpin 45s linear infinite reverse;
+}
+
+.penguin-emoji {
+    font-size: 120px;
+    animation: penguinBounce 3s ease-in-out infinite;
+    filter: drop-shadow(0 20px 40px rgba(0,0,0,0.3));
+}
+
+@keyframes gentlePulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(79, 172, 254, 0.1); }
+    50% { transform: scale(1.03); box-shadow: 0 0 60px rgba(79, 172, 254, 0.2); }
+}
+
+@keyframes penguinBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+}
+
+@keyframes slowSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ===== SECTION HEADERS ===== */
+.section-header {
+    text-align: center;
+    margin-bottom: 60px;
+}
+
+.section-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(79, 172, 254, 0.1);
+    border: 1px solid rgba(79, 172, 254, 0.2);
+    padding: 6px 16px;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+}
+
+.section-desc {
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+    font-size: 1.05rem;
+}
+
+/* ===== SPECIES CARDS ===== */
+.species-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.species-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 32px 28px;
+    backdrop-filter: blur(16px);
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+}
+
+.species-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transition: var(--transition-smooth);
+}
+
+.species-card:nth-child(1)::before { background: var(--gradient-warm); }
+.species-card:nth-child(2)::before { background: var(--gradient-accent); }
+.species-card:nth-child(3)::before { background: var(--gradient-cool); }
+
+.species-card:hover {
+    transform: translateY(-6px);
+    background: var(--bg-card-hover);
+    border-color: var(--border-glow);
+    box-shadow: var(--shadow-lg);
+}
+
+.species-card:nth-child(1):hover { box-shadow: 0 16px 48px rgba(255, 169, 77, 0.1); }
+.species-card:nth-child(2):hover { box-shadow: 0 16px 48px rgba(79, 172, 254, 0.1); }
+.species-card:nth-child(3):hover { box-shadow: 0 16px 48px rgba(56, 217, 169, 0.1); }
+
+.species-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+    animation: iconFloat 4s ease-in-out infinite;
+}
+
+.species-card:nth-child(2) .species-icon { animation-delay: -1.3s; }
+.species-card:nth-child(3) .species-icon { animation-delay: -2.6s; }
+
+@keyframes iconFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+.species-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.species-latin {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 16px;
+}
+
+.species-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    line-height: 1.7;
+}
+
+.species-traits {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.trait {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+}
+
+.trait-label {
+    color: var(--text-muted);
+}
+
+.trait-value {
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+}
+
+.species-card:nth-child(1) .trait-value { color: var(--accent-orange); }
+.species-card:nth-child(2) .trait-value { color: var(--accent-blue); }
+.species-card:nth-child(3) .trait-value { color: var(--accent-teal); }
+
+.btn-try {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-spring);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.species-card:nth-child(1) .btn-try { background: linear-gradient(135deg, #ff9a44, #f06595); }
+.species-card:nth-child(2) .btn-try { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+.species-card:nth-child(3) .btn-try { background: linear-gradient(135deg, #38d9a9, #4facfe); }
+
+.btn-try:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.btn-try:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* ===== FACTS SECTION ===== */
+.facts-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.fact-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 28px 22px;
+    text-align: center;
+    backdrop-filter: blur(16px);
+    transition: var(--transition-smooth);
+}
+
+.fact-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-glow);
+    box-shadow: var(--shadow-glow-blue);
+}
+
+.fact-icon {
+    font-size: 36px;
+    margin-bottom: 14px;
+    display: block;
+}
+
+.fact-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.fact-text {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* ===== PREDICTION SECTION ===== */
+.predict-section {
+    background: linear-gradient(180deg, transparent, rgba(79, 172, 254, 0.03), transparent);
+}
+
+.predict-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: start;
+}
+
+.predict-info h3 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.predict-info p {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    line-height: 1.8;
+}
+
+.method-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(56, 217, 169, 0.1);
+    border: 1px solid rgba(56, 217, 169, 0.2);
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--accent-teal);
+    margin-bottom: 28px;
+}
+
+.features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    transition: var(--transition-fast);
+}
+
+.feature-item:hover {
+    border-color: var(--border-glow);
+    background: var(--bg-card-hover);
+}
+
+.feature-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.feature-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+}
+
+.feature-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* ===== FORM ===== */
+.predict-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    padding: 36px;
+    backdrop-filter: blur(16px);
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+}
+
+.predict-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-accent);
+}
+
+.predict-card-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.predict-card-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: rgba(15, 23, 41, 0.6);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    transition: var(--transition-fast);
+    outline: none;
+}
+
+.form-input::placeholder {
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+}
+
+.form-input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.12);
+}
+
+.form-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.btn-predict {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--gradient-accent);
+    color: #0f1729;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-spring);
+    margin-top: 8px;
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.02em;
+}
+
+.btn-predict::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-predict:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(79, 172, 254, 0.3);
+}
+
+.btn-predict:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btn-predict:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.btn-predict:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ===== RESULT ===== */
+.result-container {
+    display: none;
+    margin-top: 24px;
+    padding: 24px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    animation: resultReveal 0.5s var(--transition-spring);
+    position: relative;
+    overflow: hidden;
+}
+
+.result-container.show {
+    display: block;
+}
+
+.result-container.success {
+    background: rgba(56, 217, 169, 0.08);
+    border: 1px solid rgba(56, 217, 169, 0.2);
+}
+
+.result-container.error {
+    background: rgba(240, 101, 149, 0.08);
+    border: 1px solid rgba(240, 101, 149, 0.2);
+}
+
+@keyframes resultReveal {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.result-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+}
+
+.result-species {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.result-species.adelie { color: var(--accent-orange); }
+.result-species.chinstrap { color: var(--accent-blue); }
+.result-species.gentoo { color: var(--accent-teal); }
+
+.result-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* ===== FOOTER ===== */
+.footer {
+    padding: 40px 0;
+    border-top: 1px solid var(--border-subtle);
+    text-align: center;
+}
+
+.footer p {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.footer a {
+    color: var(--accent-blue);
+    text-decoration: none;
+    transition: var(--transition-fast);
+}
+
+.footer a:hover {
+    color: var(--accent-cyan);
+}
+
+/* ===== SCROLL ANIMATIONS ===== */
+.reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ===== LOADING DOTS ===== */
+.loading-dots {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.loading-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #0f1729;
+    animation: dotBounce 1.2s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes dotBounce {
+    0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+    40% { transform: scale(1.2); opacity: 1; }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .hero-content { grid-template-columns: 1fr; text-align: center; }
+    .hero-subtitle { margin: 0 auto 36px; }
+    .hero-stats { justify-content: center; }
+    .hero-visual { order: -1; }
+    .penguin-showcase { width: 280px; height: 280px; }
+    .penguin-emoji { font-size: 90px; }
+    .species-grid { grid-template-columns: 1fr; max-width: 420px; margin: 0 auto; }
+    .facts-grid { grid-template-columns: repeat(2, 1fr); }
+    .predict-layout { grid-template-columns: 1fr; }
+    .hero-text h1 { font-size: 2.4rem; }
+}
+
+@media (max-width: 640px) {
+    section { padding: 60px 0; }
+    .nav-links { display: none; }
+    .hero-text h1 { font-size: 2rem; }
+    .section-title { font-size: 1.8rem; }
+    .facts-grid { grid-template-columns: 1fr; }
+    .predict-card { padding: 24px; }
+    .hero-stats { gap: 24px; }
+}
+
+/* ===== TEAM SECTION ===== */
+.team-section {
+    background: linear-gradient(180deg, transparent, rgba(177, 151, 252, 0.04), transparent);
+}
+
+.team-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+}
+
+.team-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 32px 24px;
+    text-align: center;
+    backdrop-filter: blur(16px);
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+}
+
+.team-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-accent);
+    opacity: 0;
+    transition: var(--transition-smooth);
+}
+
+.team-card:hover {
+    transform: translateY(-6px);
+    background: var(--bg-card-hover);
+    border-color: var(--border-glow);
+    box-shadow: var(--shadow-glow-blue);
+}
+
+.team-card:hover::before {
+    opacity: 1;
+}
+
+.team-avatar {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    position: relative;
+    transition: var(--transition-spring);
+}
+
+.team-card:nth-child(1) .team-avatar { background: linear-gradient(135deg, rgba(79,172,254,0.15), rgba(0,242,254,0.15)); border: 2px solid rgba(79,172,254,0.25); }
+.team-card:nth-child(2) .team-avatar { background: linear-gradient(135deg, rgba(56,217,169,0.15), rgba(79,172,254,0.15)); border: 2px solid rgba(56,217,169,0.25); }
+.team-card:nth-child(3) .team-avatar { background: linear-gradient(135deg, rgba(255,169,77,0.15), rgba(240,101,149,0.15)); border: 2px solid rgba(255,169,77,0.25); }
+.team-card:nth-child(4) .team-avatar { background: linear-gradient(135deg, rgba(177,151,252,0.15), rgba(240,101,149,0.15)); border: 2px solid rgba(177,151,252,0.25); }
+
+.team-card:hover .team-avatar {
+    transform: scale(1.08);
+}
+
+.team-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.team-role {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: 0.04em;
+}
+
+.team-card:nth-child(1) .team-role { color: var(--accent-blue); }
+.team-card:nth-child(2) .team-role { color: var(--accent-teal); }
+.team-card:nth-child(3) .team-role { color: var(--accent-orange); }
+.team-card:nth-child(4) .team-role { color: var(--accent-purple); }
+
+.team-nim {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+@media (max-width: 1024px) {
+    .team-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+    .team-grid { grid-template-columns: 1fr; max-width: 320px; margin: 0 auto; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- Ambient Background -->
+<div class="ambient-bg">
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div class="ambient-orb orb-3"></div>
+</div>
+
+<!-- Snowflakes -->
+<div class="snowflakes" id="snowflakes"></div>
+
+<div class="page-wrapper">
+
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
+        <div class="container nav-content">
+            <a href="#" class="nav-logo">
+                <div class="logo-icon">🐧</div>
+                <div class="logo-text">Palmer <span>Penguins</span></div>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#species">Spesies</a></li>
+                <li><a href="#facts">Fakta</a></li>
+                <li><a href="#predict">Prediksi</a></li>
+                <li><a href="#team">Tim</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1>
+                        Kenali Spesies<br>
+                        <span class="gradient-text">Penguin Palmer</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        Jelajahi keajaiban tiga spesies penguin dari Kepulauan Palmer, Antartika. Gunakan teknologi machine learning untuk mengklasifikasikan spesies berdasarkan ciri fisik.
+                    </p>
+                    <div class="hero-stats">
+                        <div class="stat-item">
+                            <div class="stat-number">3</div>
+                            <div class="stat-label">Spesies</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">344</div>
+                            <div class="stat-label">Data Sampel</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">KNN</div>
+                            <div class="stat-label">Algoritma</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="penguin-showcase">
+                        <div class="penguin-circle">
+                            <div class="penguin-emoji">🐧</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Species Section -->
+    <section id="species">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-badge">🔬 Spesies Penguin</div>
+                <h2 class="section-title">Tiga Spesies Unik</h2>
+                <p class="section-desc">Setiap spesies memiliki karakteristik fisik yang berbeda. Pelajari perbedaan mereka secara mendalam.</p>
+            </div>
+
+            <div class="species-grid">
+
+                <!-- Adelie -->
+                <div class="species-card reveal reveal-delay-1" id="card-adelie">
+                    <span class="species-icon">🟠</span>
+                    <h3 class="species-name">Adélie</h3>
+                    <p class="species-latin">Pygoscelis adeliae</p>
+                    <p class="species-desc">Penguin paling umum di Antartika. Dikenal dengan cincin putih di sekitar mata dan paruh pendek berwarna hitam kemerahan. Perenang yang gesit dengan kecepatan hingga 45 km/jam.</p>
+                    <div class="species-traits">
+                        <div class="trait">
+                            <span class="trait-label">🌍 Habitat</span>
+                            <span class="trait-value">Pantai Antartika</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">🍤 Makanan</span>
+                            <span class="trait-value">Krill & Ikan</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">📏 Tinggi</span>
+                            <span class="trait-value">46–71 cm</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">⚖️ Berat</span>
+                            <span class="trait-value">3.6–6.2 kg</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">📊 Populasi</span>
+                            <span class="trait-value">~7.5 juta</span>
+                        </div>
+                    </div>
+                    <button class="btn-try" onclick="fillForm(39, 18, 190, 3700)" id="btn-try-adelie">
+                        ⚡ Coba Data Adélie
+                    </button>
+                </div>
+
+                <!-- Chinstrap -->
+                <div class="species-card reveal reveal-delay-2" id="card-chinstrap">
+                    <span class="species-icon">🔵</span>
+                    <h3 class="species-name">Chinstrap</h3>
+                    <p class="species-latin">Pygoscelis antarcticus</p>
+                    <p class="species-desc">Dinamai dari garis hitam tipis di bawah dagu yang menyerupai tali helm. Dikenal agresif dalam melindungi sarang. Biasa ditemukan di Semenanjung Antartika dan pulau-pulau sekitar.</p>
+                    <div class="species-traits">
+                        <div class="trait">
+                            <span class="trait-label">🌍 Habitat</span>
+                            <span class="trait-value">Kep. Antartika</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">🍤 Makanan</span>
+                            <span class="trait-value">Krill Antartika</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">📏 Tinggi</span>
+                            <span class="trait-value">68–76 cm</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">⚖️ Berat</span>
+                            <span class="trait-value">3.2–5.3 kg</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">📊 Populasi</span>
+                            <span class="trait-value">~8 juta</span>
+                        </div>
+                    </div>
+                    <button class="btn-try" onclick="fillForm(55, 20, 200, 4500)" id="btn-try-chinstrap">
+                        ⚡ Coba Data Chinstrap
+                    </button>
+                </div>
+
+                <!-- Gentoo -->
+                <div class="species-card reveal reveal-delay-3" id="card-gentoo">
+                    <span class="species-icon">🟢</span>
+                    <h3 class="species-name">Gentoo</h3>
+                    <p class="species-latin">Pygoscelis papua</p>
+                    <p class="species-desc">Penguin tercepat di air dengan kecepatan hingga 36 km/jam. Mudah dikenali dari bercak putih di atas kepala dan paruh oranye-merah yang mencolok. Spesies terbesar dari genus Pygoscelis.</p>
+                    <div class="species-traits">
+                        <div class="trait">
+                            <span class="trait-label">🌍 Habitat</span>
+                            <span class="trait-value">Sub-Antartika</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">🍤 Makanan</span>
+                            <span class="trait-value">Ikan & Krill</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">📏 Tinggi</span>
+                            <span class="trait-value">75–90 cm</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">⚖️ Berat</span>
+                            <span class="trait-value">4.5–8.5 kg</span>
+                        </div>
+                        <div class="trait">
+                            <span class="trait-label">📊 Populasi</span>
+                            <span class="trait-value">~774 ribu</span>
+                        </div>
+                    </div>
+                    <button class="btn-try" onclick="fillForm(48, 15, 217, 5000)" id="btn-try-gentoo">
+                        ⚡ Coba Data Gentoo
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Facts Section -->
+    <section id="facts">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-badge">❄️ Fakta Menarik</div>
+                <h2 class="section-title">Tahukah Kamu?</h2>
+                <p class="section-desc">Berbagai fakta unik tentang penguin Palmer yang mungkin belum kamu ketahui.</p>
+            </div>
+
+            <div class="facts-grid">
+                <div class="fact-card reveal reveal-delay-1">
+                    <span class="fact-icon">🏊</span>
+                    <h4 class="fact-title">Perenang Handal</h4>
+                    <p class="fact-text">Penguin Gentoo dapat berenang dengan kecepatan hingga 36 km/jam, menjadikannya penguin tercepat di lautan.</p>
+                </div>
+                <div class="fact-card reveal reveal-delay-2">
+                    <span class="fact-icon">🪺</span>
+                    <h4 class="fact-title">Pasangan Setia</h4>
+                    <p class="fact-text">Penguin Adélie kembali ke pasangan yang sama setiap musim kawin, dengan tingkat kesetiaan ~62% antar musim.</p>
+                </div>
+                <div class="fact-card reveal reveal-delay-3">
+                    <span class="fact-icon">🏔️</span>
+                    <h4 class="fact-title">Pemanjat Ulung</h4>
+                    <p class="fact-text">Chinstrap mendapatkan namanya dari garis hitam di bawah dagu. Mereka sering bersarang di lereng berbatu yang curam.</p>
+                </div>
+                <div class="fact-card reveal reveal-delay-4">
+                    <span class="fact-icon">🧬</span>
+                    <h4 class="fact-title">Dataset Populer</h4>
+                    <p class="fact-text">Palmer Penguins dikumpulkan oleh Dr. Kristen Gorman sebagai alternatif modern dari dataset Iris untuk machine learning.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Prediction Section -->
+    <section class="predict-section" id="predict">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-badge">🤖 Machine Learning</div>
+                <h2 class="section-title">Prediksi Spesies</h2>
+                <p class="section-desc">Masukkan ciri fisik penguin dan biarkan model KNN memprediksi spesiesnya secara real-time.</p>
+            </div>
+
+            <div class="predict-layout">
+
+                <div class="predict-info reveal">
+                    <h3>Bagaimana Cara Kerjanya?</h3>
+                    <p>Model K-Nearest Neighbors (KNN) mengklasifikasikan spesies penguin Palmer berdasarkan empat fitur pengukuran fisik. Model ini mencari data latih terdekat untuk menentukan spesies.</p>
+                    <div class="method-badge">🎯 K-Nearest Neighbors (KNN)</div>
+
+                    <div class="features-list">
+                        <div class="feature-item">
+                            <span class="feature-icon">📐</span>
+                            <div>
+                                <div class="feature-name">Bill Length (Panjang Paruh)</div>
+                                <div class="feature-desc">Panjang paruh bagian atas diukur dalam milimeter. Chinstrap cenderung memiliki paruh terpanjang.</div>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📏</span>
+                            <div>
+                                <div class="feature-name">Bill Depth (Kedalaman Paruh)</div>
+                                <div class="feature-desc">Ketebalan paruh dari atas ke bawah. Adélie memiliki paruh paling dalam dengan rata-rata ~18mm.</div>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🦶</span>
+                            <div>
+                                <div class="feature-name">Flipper Length (Panjang Sirip)</div>
+                                <div class="feature-desc">Pengukuran sirip dari pangkal hingga ujung. Gentoo memiliki sirip terpanjang (~217mm).</div>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">⚖️</span>
+                            <div>
+                                <div class="feature-name">Body Mass (Berat Badan)</div>
+                                <div class="feature-desc">Berat tubuh dalam gram. Gentoo paling berat (hingga 8.5 kg), Chinstrap paling ringan.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reveal reveal-delay-2">
+                    <div class="predict-card" id="predict-card">
+                        <h3 class="predict-card-title">🔮 Input Pengukuran</h3>
+                        <p class="predict-card-desc">Isi parameter di bawah atau gunakan tombol "Coba Data" di kartu spesies.</p>
+
+                        <form id="predictForm" action="/predict" method="POST">
+                            <div class="form-group">
+                                <label class="form-label" for="bill_length_mm">Bill Length (mm)</label>
+                                <input class="form-input" type="number" step="0.1" id="bill_length_mm" name="bill_length_mm" placeholder="Mis: 39" required>
+                                <div class="form-hint">Rentang umum: 32 – 60 mm</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="bill_depth_mm">Bill Depth (mm)</label>
+                                <input class="form-input" type="number" step="0.1" id="bill_depth_mm" name="bill_depth_mm" placeholder="Mis: 18" required>
+                                <div class="form-hint">Rentang umum: 13 – 22 mm</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="flipper_length_mm">Flipper Length (mm)</label>
+                                <input class="form-input" type="number" step="0.1" id="flipper_length_mm" name="flipper_length_mm" placeholder="Mis: 190" required>
+                                <div class="form-hint">Rentang umum: 170 – 235 mm</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="body_mass_g">Body Mass (g)</label>
+                                <input class="form-input" type="number" step="1" id="body_mass_g" name="body_mass_g" placeholder="Mis: 3700" required>
+                                <div class="form-hint">Rentang umum: 2700 – 6300 g</div>
+                            </div>
+
+                            <button type="submit" class="btn-predict" id="submitBtn">
+                                Prediksi Spesies 🚀
+                            </button>
+                        </form>
+
+                        {% if hasil %}
+                        <div class="result-container show success" id="result-container">
+                            <div class="result-label">Hasil Prediksi</div>
+                            <div class="result-species
+                                {% if hasil == 'Adelie' %}adelie
+                                {% elif hasil == 'Chinstrap' %}chinstrap
+                                {% elif hasil == 'Gentoo' %}gentoo
+                                {% endif %}">
+                                {% if hasil == 'Adelie' %}🟠
+                                {% elif hasil == 'Chinstrap' %}🔵
+                                {% elif hasil == 'Gentoo' %}🟢
+                                {% else %}🐧
+                                {% endif %} {{ hasil }}
+                            </div>
+                            <div class="result-desc">
+                                {% if hasil == 'Adelie' %}Penguin Adélie — Spesies paling umum di Antartika dengan cincin putih khas di sekitar mata.
+                                {% elif hasil == 'Chinstrap' %}Penguin Chinstrap — Mudah dikenali dari garis hitam tipis di bawah dagu menyerupai tali helm.
+                                {% elif hasil == 'Gentoo' %}Penguin Gentoo — Perenang tercepat dengan bercak putih khas di atas kepala.
+                                {% else %}Spesies berhasil diprediksi.
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section class="team-section" id="team">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-badge">👥 Tim Kelompok</div>
+                <h2 class="section-title">Anggota Kelompok</h2>
+                <p class="section-desc">Proyek ini dikembangkan oleh tim kami sebagai bagian dari tugas presentasi.</p>
+            </div>
+
+            <div class="team-grid">
+
+                <div class="team-card reveal reveal-delay-1">
+                    <div class="team-avatar">👨‍💻</div>
+                    <h4 class="team-name">Nama Anggota 1</h4>
+                    <p class="team-role">Ketua Kelompok</p>
+                    <p class="team-nim">NIM: XXXXXXXXXX</p>
+                </div>
+
+                <div class="team-card reveal reveal-delay-2">
+                    <div class="team-avatar">👩‍💻</div>
+                    <h4 class="team-name">Nama Anggota 2</h4>
+                    <p class="team-role">Anggota</p>
+                    <p class="team-nim">NIM: XXXXXXXXXX</p>
+                </div>
+
+                <div class="team-card reveal reveal-delay-3">
+                    <div class="team-avatar">👨‍🔬</div>
+                    <h4 class="team-name">Nama Anggota 3</h4>
+                    <p class="team-role">Anggota</p>
+                    <p class="team-nim">NIM: XXXXXXXXXX</p>
+                </div>
+
+                <div class="team-card reveal reveal-delay-4">
+                    <div class="team-avatar">👩‍🔬</div>
+                    <h4 class="team-name">Nama Anggota 4</h4>
+                    <p class="team-role">Anggota</p>
+                    <p class="team-nim">NIM: XXXXXXXXXX</p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>Palmer Penguins Classifier — Dibuat dengan ❤️ menggunakan Flask &amp; KNN &bull; Dataset oleh <a href="https://allisonhorst.github.io/palmerpenguins/" target="_blank" rel="noopener">Dr. Kristen Gorman</a></p>
+        </div>
+    </footer>
+
+</div>
+
+<script>
+// ===== SNOWFLAKE GENERATOR =====
+(function createSnowflakes() {
+    const container = document.getElementById('snowflakes');
+    const count = 30;
+    for (let i = 0; i < count; i++) {
+        const flake = document.createElement('div');
+        flake.className = 'snowflake';
+        flake.style.left = Math.random() * 100 + '%';
+        flake.style.width = flake.style.height = (Math.random() * 3 + 2) + 'px';
+        flake.style.animationDuration = (Math.random() * 10 + 8) + 's';
+        flake.style.animationDelay = (Math.random() * 15) + 's';
+        container.appendChild(flake);
+    }
+})();
+
+// ===== NAVBAR SCROLL =====
+const navbar = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 60);
+});
+
+// ===== SMOOTH SCROLL FOR NAV LINKS =====
+document.querySelectorAll('.nav-links a').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href').substring(1);
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+            const navHeight = navbar.offsetHeight;
+            const targetPos = targetEl.getBoundingClientRect().top + window.scrollY - navHeight - 20;
+            window.scrollTo({ top: targetPos, behavior: 'smooth' });
+        }
+    });
+});
+
+// ===== SCROLL REVEAL =====
+const revealElements = document.querySelectorAll('.reveal');
+const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+        }
+    });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+revealElements.forEach(el => revealObserver.observe(el));
+
+// ===== FILL FORM =====
+function fillForm(bl, bd, fl, bm) {
+    document.getElementById('bill_length_mm').value = bl;
+    document.getElementById('bill_depth_mm').value = bd;
+    document.getElementById('flipper_length_mm').value = fl;
+    document.getElementById('body_mass_g').value = bm;
+
+    // Scroll to prediction
+    document.getElementById('predict-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Flash effect on inputs
+    document.querySelectorAll('.form-input').forEach(input => {
+        input.style.borderColor = 'var(--accent-cyan)';
+        input.style.boxShadow = '0 0 0 3px rgba(0, 242, 254, 0.15)';
+        setTimeout(() => {
+            input.style.borderColor = '';
+            input.style.boxShadow = '';
+        }, 800);
+    });
+
+    // Hide old result
+    const result = document.getElementById('result-container');
+    if (result) result.classList.remove('show');
+}
+
+// ===== AUTO SCROLL TO RESULT =====
+{% if hasil %}
+window.addEventListener('load', function() {
+    const resultEl = document.getElementById('result-container');
+    if (resultEl) {
+        setTimeout(() => {
+            resultEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 500);
+    }
+});
+{% endif %}
+</script>
+
+</body>
+</html>
